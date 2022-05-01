@@ -16,13 +16,85 @@
     </style>
     <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css">
     <script src="https://js.arcgis.com/4.23/"></script>
-    <script>
+    <script type="module">
+
+	//
+	// FIREBASE
+	//
+	import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-app.js";
+	import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-database.js";
+	// TODO: Add SDKs for Firebase products that you want to use
+	// https://firebase.google.com/docs/web/setup#available-libraries
+
+	// Your web app's Firebase configuration
+	const firebaseConfig = {
+	  apiKey: "AIzaSyBc_zcN_48glVLercA-Z7xX0Wzg5fVXD5c",
+	  authDomain: "giss-f4bc1.firebaseapp.com",
+	  projectId: "giss-f4bc1",
+	  storageBucket: "giss-f4bc1.appspot.com",
+	  messagingSenderId: "74588933199",
+	  appId: "1:74588933199:web:b26c71a1b7b1b5feac6e3a"
+	};
+
+	// Initialize Firebase
+	const app = initializeApp(firebaseConfig);
+
+	var db = getDatabase(app);
+
+	var sender = prompt();
+
+	window.addEventListener('DOMContentLoaded',()=>{
+	  console.log('DOM LOADED');
+	  document.getElementById("btn_submit").addEventListener('click',()=>{
+	  updateFb();
+	  getFb();
+	})
+	})
+
+	function updateFb(coordenates){
+
+	  console.log(coordenates);
+	  
+	  set(ref(db,'/messages/'+sender),{
+	    sender:sender,
+	    "latitude": coordenates.latitude,
+	    "longitude": coordenates.longitude
+	  })
+	  return false
+	}
+
+	function read(){
+	const dbRef = ref(db,'messages');
+	var coordenateList = {};
+	onValue(dbRef,(snapshot)=>{
+	snapshot.forEach((childSnapshot)=>{
+	  const childKey = childSnapshot.key;
+	  const childData = childSnapshot.val();
+	  console.log(childData);
+	  console.log(childData.latitude);
+	  coordenateList+=childData;
+	    })
+	  })
+	  
+	}
+
+	function getFb(){
+	  onValue(ref(db),(snapshot)=>{
+	  const data= snapshot.val();
+	  console.log(data);
+	  const messa = data['messages'];
+	  console.log(messa['sender']);
+	  })
+	}
+
       require(["esri/config","esri/Map", "esri/views/MapView", "esri/Graphic",
     "esri/layers/GraphicsLayer"], function (esriConfig,Map, MapView, Graphic, GraphicsLayer) {
 	      esriConfig.apiKey = "AAPK0b083b00de7f491fa4116286bee132e2szBFtHkYdHoA51wgWvrv7eTtFMVR_60y4ju_ltPgLo08e_OAurxtq0-6JfOQCfZU";
 	      function succes(position){
 		      var crd = position.coords;
 		      console.log(crd.latitude);
+		      updateFb(crd);
+		      read();
 
 		  const view = new MapView({
 		    map: map,
@@ -49,17 +121,72 @@
 			      geometry: point,
 			      symbol: simpleMarkerSymbol});
 		      graphicsLayer.add(pointGraphic);
-
 				    }
+	      function error(){
+		  const view = new MapView({
+		    map: map,
+		    center: [-73.9827, 40.7653], // Longitude, latitude
+		    zoom: 17, // Zoom level
+		    container: "viewDiv" // Div element
+		});
+		//function to show positions
+		drawPoint(-73.9827,40.7653)
+
+		//read -> paint, listo
+		  let i = 1;
+		  setInterval(function() {
+		    console.log('hola'+i)
+		      const dbRef = ref(db,'messages');
+		      onValue(dbRef,(snapshot)=>{
+		      snapshot.forEach((childSnapshot)=>{
+			const childKey = childSnapshot.key;
+			const childData = childSnapshot.val();
+			console.log(childData);
+			console.log(childData.latitude);
+			drawPoint(childData.longitude,childData.latitude);
+			  })
+			})
+		    i++
+		    setTimeout(() => map.removeAll(), 2000);
+		  }, 3000);
+
+	      }
+	      function drawPoint(longitude,latitude){
+		      const graphicsLayer = new GraphicsLayer();
+		      map.add(graphicsLayer);
+		      const point = { //Create a point
+			  type: "point",
+			  longitude: longitude,
+			  latitude: latitude
+		       };
+		       const simpleMarkerSymbol = {
+			  type: "simple-marker",
+			  color: [226, 119, 40],  // Orange
+			  outline: {
+			      color: [255, 255, 255], // White
+			      width: 1
+			  }
+		       };
+		      const pointGraphic = new Graphic({
+			      geometry: point,
+			      symbol: simpleMarkerSymbol});
+		      graphicsLayer.add(pointGraphic);
+	      }
 	      const map = new Map({
 		      basemap: "arcgis-topographic" // Basemap layer service
 		    });
-	      navigator.geolocation.getCurrentPosition(succes);
+	      //send ubication
+	      navigator.geolocation.getCurrentPosition(succes,error);
+	      //update
+
 
 	    });
+
     </script>
   </head>
   <body>
+    <input id="location" placeholder="Enter Ubication" autocomplete="off">
+    <button id="btn_submit">Click Me</button>
     <div id="viewDiv"></div>
   </body>
 </html>
